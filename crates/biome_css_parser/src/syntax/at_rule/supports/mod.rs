@@ -13,7 +13,7 @@ use crate::syntax::property::{
     parse_generic_property_name, parse_property_value_with_end_set,
 };
 use crate::syntax::scss::{
-    is_at_scss_supports_interpolated_condition, is_nth_at_scss_interpolated_property,
+    is_at_scss_supports_interpolated_condition, is_nth_at_scss_interpolated_property_name,
     parse_scss_supports_interpolated_condition,
 };
 use crate::syntax::selector::parse_selector;
@@ -306,7 +306,8 @@ fn parse_supports_feature_selector(p: &mut CssParser) -> ParsedSyntax {
 #[inline]
 fn is_at_supports_feature_declaration(p: &mut CssParser) -> bool {
     p.at(T!['('])
-        && (is_nth_at_direct_generic_property(p, 1) || is_nth_at_scss_interpolated_property(p, 1))
+        && (is_nth_at_direct_generic_property(p, 1)
+            || is_nth_at_scss_interpolated_property_name(p, 1))
 }
 
 #[inline]

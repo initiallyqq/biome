@@ -3,6 +3,7 @@ use crate::parser::CssParser;
 use crate::syntax::at_rule::error::{AnyInParensChainParseRecovery, AnyInParensParseRecovery};
 use crate::syntax::at_rule::feature::{expected_any_query_feature, parse_any_query_feature};
 use crate::syntax::block::parse_conditional_block;
+use crate::syntax::parse_error::scss_only_syntax_error;
 use crate::syntax::scss::{
     is_at_scss_interpolated_media_in_parens, is_at_scss_media_condition, is_at_scss_media_query,
     parse_scss_interpolated_media_in_parens, parse_scss_media_condition, parse_scss_media_query,
@@ -10,11 +11,12 @@ use crate::syntax::scss::{
 };
 use crate::syntax::util::skip_possible_tailwind_syntax;
 use crate::syntax::{
-    is_at_identifier, is_at_metavariable, is_nth_at_identifier, parse_metavariable,
-    parse_regular_identifier,
+    CssSyntaxFeatures, is_at_identifier, is_at_metavariable, is_nth_at_identifier,
+    parse_metavariable, parse_regular_identifier,
 };
 use biome_css_syntax::CssSyntaxKind::*;
 use biome_css_syntax::{CssSyntaxKind, T};
+use biome_parser::SyntaxFeature;
 use biome_parser::diagnostic::expected_any;
 use biome_parser::parse_lists::ParseSeparatedList;
 use biome_parser::parse_recovery::{ParseRecoveryTokenSet, RecoveryResult};
@@ -125,7 +127,13 @@ pub(crate) fn parse_any_media_query(p: &mut CssParser) -> ParsedSyntax {
     if is_at_media_type_query(p) {
         parse_any_media_type_query(p)
     } else if is_at_scss_media_query(p) {
-        parse_scss_media_query_or_condition_query(p)
+        CssSyntaxFeatures::Scss.parse_exclusive_syntax(
+            p,
+            parse_scss_media_query_or_condition_query,
+            |p, marker| {
+                scss_only_syntax_error(p, "SCSS interpolated media queries", marker.range(p))
+            },
+        )
     } else if is_at_metavariable(p) {
         parse_metavariable(p)
     } else if is_at_any_media_condition(p) {
@@ -164,7 +172,9 @@ pub(crate) fn parse_any_media_condition(p: &mut CssParser) -> ParsedSyntax {
     if is_at_media_not_condition(p) {
         parse_media_not_condition(p)
     } else if is_at_scss_media_condition(p) {
-        parse_scss_media_condition(p)
+        CssSyntaxFeatures::Scss.parse_exclusive_syntax(p, parse_scss_media_condition, |p, marker| {
+            scss_only_syntax_error(p, "SCSS interpolated media conditions", marker.range(p))
+        })
     } else {
         parse_any_media_condition_operand(p).map(|lhs| match p.cur() {
             T![and] => parse_media_and_condition(p, lhs),
@@ -340,7 +350,9 @@ fn is_at_any_media_condition_operand(p: &mut CssParser) -> bool {
 #[inline]
 pub fn parse_any_media_condition_operand(p: &mut CssParser) -> ParsedSyntax {
     if is_at_scss_media_query(p) {
-        parse_scss_media_query(p)
+        CssSyntaxFeatures::Scss.parse_exclusive_syntax(p, parse_scss_media_query, |p, marker| {
+            scss_only_syntax_error(p, "SCSS interpolated media queries", marker.range(p))
+        })
     } else {
         parse_any_media_in_parens(p)
     }
@@ -358,7 +370,18 @@ fn is_at_any_media_in_parens(p: &mut CssParser) -> bool {
 #[inline]
 pub(crate) fn parse_any_media_in_parens(p: &mut CssParser) -> ParsedSyntax {
     if is_at_scss_interpolated_media_in_parens(p) {
-        return parse_scss_interpolated_media_in_parens(p);
+        if CssSyntaxFeatures::Scss.is_supported(p) {
+            return parse_scss_interpolated_media_in_parens(p);
+        }
+
+        let m = p.start();
+        p.bump(T!['(']);
+        parse_any_query_feature(p)
+            .or_recover(p, &AnyInParensParseRecovery, expected_any_query_feature)
+            .ok();
+        p.expect(T![')']);
+
+        return Present(m.complete(p, CSS_MEDIA_FEATURE_IN_PARENS));
     }
 
     if !is_at_any_media_in_parens(p) {
