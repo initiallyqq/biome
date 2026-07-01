@@ -74,6 +74,12 @@
   .media-interval-range {}
 }
 
+@page {
+  font: {
+    size: 12px;
+  }
+}
+
 @keyframes loader {
   #{$i}% {
     opacity: 1;

@@ -9,7 +9,8 @@ use crate::syntax::declaration::parse_declaration_with_semicolon;
 use crate::syntax::parse_error::scss_only_syntax_error;
 use crate::syntax::scss::{
     is_at_scss_nesting_declaration, is_at_scss_variable_declaration,
-    parse_scss_variable_declaration, try_parse_scss_nesting_declaration,
+    parse_exclusive_scss_nested_property_declaration, parse_scss_variable_declaration,
+    try_parse_scss_nesting_declaration,
 };
 use crate::syntax::{
     CssSyntaxFeatures, is_at_any_declaration_with_semicolon, is_at_identifier,
@@ -237,6 +238,10 @@ impl ParseNodeList for PageAtRuleItemList {
             }
 
             parse_declaration_with_semicolon(p)
+        } else if is_at_scss_nesting_declaration(p)
+            && let Present(declaration) = parse_exclusive_scss_nested_property_declaration(p)
+        {
+            Present(declaration)
         } else if is_at_any_declaration_with_semicolon(p) {
             parse_any_declaration_with_semicolon(p)
         } else if is_at_qualified_rule(p) {

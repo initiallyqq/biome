@@ -172,9 +172,13 @@ pub(crate) fn parse_any_media_condition(p: &mut CssParser) -> ParsedSyntax {
     if is_at_media_not_condition(p) {
         parse_media_not_condition(p)
     } else if is_at_scss_media_condition(p) {
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(p, parse_scss_media_condition, |p, marker| {
-            scss_only_syntax_error(p, "SCSS interpolated media conditions", marker.range(p))
-        })
+        CssSyntaxFeatures::Scss.parse_exclusive_syntax(
+            p,
+            parse_scss_media_condition,
+            |p, marker| {
+                scss_only_syntax_error(p, "SCSS interpolated media conditions", marker.range(p))
+            },
+        )
     } else {
         parse_any_media_condition_operand(p).map(|lhs| match p.cur() {
             T![and] => parse_media_and_condition(p, lhs),

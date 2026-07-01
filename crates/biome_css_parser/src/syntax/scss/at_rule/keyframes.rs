@@ -1,9 +1,9 @@
 use crate::parser::CssParser;
+use crate::syntax::is_nth_at_identifier;
 use crate::syntax::scss::{
     is_at_scss_interpolation, is_at_scss_variable, is_nth_at_scss_interpolation,
     parse_scss_interpolated_name, parse_scss_regular_interpolation, parse_scss_variable,
 };
-use crate::syntax::is_nth_at_identifier;
 use biome_css_syntax::CssSyntaxKind::{SCSS_KEYFRAMES_NAME, SCSS_KEYFRAMES_SELECTOR};
 use biome_css_syntax::T;
 use biome_parser::Parser;

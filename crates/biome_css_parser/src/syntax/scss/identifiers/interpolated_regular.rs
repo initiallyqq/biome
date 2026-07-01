@@ -7,8 +7,7 @@ use crate::syntax::scss::identifiers::interpolated_identifier::{
     parse_scss_interpolated_identifier_parts,
 };
 use crate::syntax::scss::{
-    is_at_scss_interpolation, is_nth_at_scss_interpolated_identifier,
-    is_nth_at_scss_interpolation,
+    is_at_scss_interpolation, is_nth_at_scss_interpolated_identifier, is_nth_at_scss_interpolation,
 };
 use biome_css_syntax::CssSyntaxKind::{SCSS_INTERPOLATED_IDENTIFIER, SCSS_INTERPOLATION};
 use biome_parser::Parser;

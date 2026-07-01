@@ -3,21 +3,21 @@ use crate::syntax::block::parse_declaration_or_rule_list_block;
 use crate::syntax::declaration::{
     complete_declaration_with_semicolon, parse_declaration_important,
 };
-use crate::syntax::parse_error::expected_component_value;
+use crate::syntax::parse_error::{expected_component_value, scss_only_syntax_error};
 use crate::syntax::scss::{
     SCSS_NESTING_VALUE_END_SET, complete_empty_scss_expression,
     is_at_scss_interpolated_dashed_identifier, is_at_scss_interpolated_identifier,
     is_at_scss_interpolated_property_name, parse_scss_interpolated_identifier,
     parse_scss_interpolated_property_name, parse_scss_optional_value_until,
 };
-use crate::syntax::{is_at_dashed_identifier, is_at_identifier, try_parse};
+use crate::syntax::{CssSyntaxFeatures, is_at_dashed_identifier, is_at_identifier, try_parse};
 use biome_css_syntax::CssSyntaxKind::{
     CSS_DECLARATION, CSS_DECLARATION_WITH_SEMICOLON, CSS_GENERIC_PROPERTY, SCSS_NESTING_DECLARATION,
 };
 use biome_css_syntax::{CssSyntaxKind, T};
 use biome_parser::prelude::ParsedSyntax;
 use biome_parser::prelude::ParsedSyntax::{Absent, Present};
-use biome_parser::{Marker, Parser};
+use biome_parser::{Marker, Parser, SyntaxFeature};
 
 /// Parses a SCSS nested property declaration block, or falls back to a regular
 /// declaration when no block follows.
@@ -223,4 +223,33 @@ pub(crate) fn try_parse_scss_nesting_declaration(
             _ => Err(()),
         }
     })
+}
+
+/// Parses only the SCSS nested-property block form, rewinding for regular
+/// declarations that share the same `name:` prefix.
+#[inline]
+fn try_parse_scss_nested_property_declaration(p: &mut CssParser) -> Result<ParsedSyntax, ()> {
+    try_parse(p, |p| {
+        let Some((syntax, could_be_selector)) = parse_scss_nesting_declaration_candidate(p) else {
+            return Err(());
+        };
+
+        match syntax.kind(p) {
+            Some(SCSS_NESTING_DECLARATION) if !could_be_selector => Ok(syntax),
+            _ => Err(()),
+        }
+    })
+}
+
+#[inline]
+pub(crate) fn parse_exclusive_scss_nested_property_declaration(p: &mut CssParser) -> ParsedSyntax {
+    if CssSyntaxFeatures::Scss.is_supported(p) {
+        return Absent;
+    }
+
+    CssSyntaxFeatures::Scss.parse_exclusive_syntax(
+        p,
+        |p| try_parse_scss_nested_property_declaration(p).unwrap_or(Absent),
+        |p, marker| scss_only_syntax_error(p, "SCSS nested property declarations", marker.range(p)),
+    )
 }

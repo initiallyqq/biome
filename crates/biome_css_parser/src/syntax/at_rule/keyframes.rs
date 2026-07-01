@@ -193,11 +193,9 @@ fn parse_keyframes_identifier(p: &mut CssParser) -> ParsedSyntax {
 /// `@keyframes $name`, `@keyframes #{$name}`, and `@keyframes fade-#{$name}`.
 fn parse_keyframes_name(p: &mut CssParser) -> ParsedSyntax {
     if is_at_scss_keyframes_name(p) {
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(
-            p,
-            parse_scss_keyframes_name,
-            |p, marker| scss_only_syntax_error(p, "SCSS keyframes names", marker.range(p)),
-        )
+        CssSyntaxFeatures::Scss.parse_exclusive_syntax(p, parse_scss_keyframes_name, |p, marker| {
+            scss_only_syntax_error(p, "SCSS keyframes names", marker.range(p))
+        })
     } else {
         parse_keyframes_identifier(p)
     }
