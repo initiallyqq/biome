@@ -171,6 +171,7 @@ lang_yaml      = [
 # TODO does it need lang_js, lang_html and lang_css? To verify
 module_graph   = ["biome_workspace_db/module_graph", "dep:biome_module_graph"]
 plugins        = ["biome_configuration/plugins", "dep:biome_plugin_loader", "lang_grit"]
+report_scss_exclusive_syntax = []
 schema         = [
   "biome_configuration/schema",
   "biome_css_syntax/schema",

@@ -16,6 +16,7 @@ use crate::syntax::{
     CssSyntaxFeatures, is_at_any_declaration_with_semicolon, is_at_identifier,
     is_at_qualified_rule, parse_any_declaration_with_semicolon,
     parse_custom_identifier_with_keywords, parse_qualified_rule, parse_regular_identifier,
+    parse_scss_exclusive_syntax,
 };
 use biome_css_syntax::CssSyntaxKind::*;
 use biome_css_syntax::{CssSyntaxKind, T};
@@ -216,13 +217,9 @@ impl ParseNodeList for PageAtRuleItemList {
         } else if is_at_at_rule(p) {
             parse_at_rule(p)
         } else if is_at_scss_variable_declaration(p) {
-            CssSyntaxFeatures::Scss.parse_exclusive_syntax(
-                p,
-                parse_scss_variable_declaration,
-                |p, marker| {
-                    scss_only_syntax_error(p, "SCSS variable declarations", marker.range(p))
-                },
-            )
+            parse_scss_exclusive_syntax(p, parse_scss_variable_declaration, |p, marker| {
+                scss_only_syntax_error(p, "SCSS variable declarations", marker.range(p))
+            })
         } else if CssSyntaxFeatures::Scss.is_supported(p) && is_at_scss_nesting_declaration(p) {
             if let Ok(declaration) = try_parse_scss_nesting_declaration(p, T!['}']) {
                 return declaration;

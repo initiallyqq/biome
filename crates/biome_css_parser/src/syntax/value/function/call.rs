@@ -9,7 +9,7 @@ use crate::syntax::value::r#if::{is_at_if_function, parse_if_function};
 use crate::syntax::value::url::{is_at_url_function, parse_url_function_with_context};
 use crate::syntax::{
     CssSyntaxFeatures, FunctionCallContext, ValueParsingContext, ValueParsingMode,
-    is_nth_at_identifier, parse_regular_identifier,
+    is_nth_at_identifier, parse_regular_identifier, parse_scss_exclusive_syntax,
 };
 use biome_css_syntax::CssSyntaxKind::*;
 use biome_css_syntax::T;
@@ -163,11 +163,10 @@ fn parse_function_with_context(p: &mut CssParser, context: ValueParsingContext) 
     let m = p.start();
 
     if context.is_scss_exclusive_syntax_allowed() && is_at_scss_module_member_access(p) {
-        CssSyntaxFeatures::Scss
-            .parse_exclusive_syntax(p, parse_scss_function_name, |p, marker| {
-                scss_only_syntax_error(p, "SCSS qualified function names", marker.range(p))
-            })
-            .or_add_diagnostic(p, expected_identifier);
+        parse_scss_exclusive_syntax(p, parse_scss_function_name, |p, marker| {
+            scss_only_syntax_error(p, "SCSS qualified function names", marker.range(p))
+        })
+        .or_add_diagnostic(p, expected_identifier);
     } else {
         parse_regular_identifier(p).or_add_diagnostic(p, expected_identifier);
     }

@@ -6,7 +6,8 @@ use crate::syntax::scss::{
 };
 use crate::syntax::selector::eat_or_recover_selector_function_close_token;
 use crate::syntax::{
-    CssSyntaxFeatures, is_at_identifier, is_at_string, parse_regular_identifier, parse_string,
+    is_at_identifier, is_at_string, parse_regular_identifier, parse_scss_exclusive_syntax,
+    parse_string,
 };
 use biome_css_syntax::CssSyntaxKind::*;
 use biome_css_syntax::{CssSyntaxKind, T};
@@ -14,7 +15,7 @@ use biome_parser::parse_lists::ParseSeparatedList;
 use biome_parser::parse_recovery::{RecoveryError, RecoveryResult};
 use biome_parser::parsed_syntax::ParsedSyntax;
 use biome_parser::parsed_syntax::ParsedSyntax::{Absent, Present};
-use biome_parser::{Parser, SyntaxFeature, TokenSet, token_set};
+use biome_parser::{Parser, TokenSet, token_set};
 
 const PSEUDO_CLASS_FUNCTION_VALUE_LIST_SET: TokenSet<CssSyntaxKind> = token_set![T![lang]];
 
@@ -100,21 +101,15 @@ fn parse_pseudo_value(p: &mut CssParser) -> ParsedSyntax {
     }
 
     if is_at_scss_interpolated_string(p) {
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(
-            p,
-            parse_scss_interpolated_string,
-            |p, marker| scss_only_syntax_error(p, "SCSS interpolated strings", marker.range(p)),
-        )
+        parse_scss_exclusive_syntax(p, parse_scss_interpolated_string, |p, marker| {
+            scss_only_syntax_error(p, "SCSS interpolated strings", marker.range(p))
+        })
     } else if is_at_string(p) {
         parse_string(p)
     } else if is_at_scss_interpolated_pseudo_value_identifier(p) {
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(
-            p,
-            parse_scss_interpolation_or_identifier,
-            |p, marker| {
-                scss_only_syntax_error(p, "SCSS interpolated pseudo values", marker.range(p))
-            },
-        )
+        parse_scss_exclusive_syntax(p, parse_scss_interpolation_or_identifier, |p, marker| {
+            scss_only_syntax_error(p, "SCSS interpolated pseudo values", marker.range(p))
+        })
     } else {
         parse_regular_identifier(p)
     }

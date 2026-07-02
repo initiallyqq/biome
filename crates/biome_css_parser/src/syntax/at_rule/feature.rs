@@ -9,7 +9,8 @@ use crate::syntax::scss::{
     parse_scss_variable,
 };
 use crate::syntax::{
-    CssSyntaxFeatures, is_at_any_value, is_at_identifier, parse_any_value, parse_regular_identifier,
+    CssSyntaxFeatures, is_at_any_value, is_at_identifier, parse_any_value,
+    parse_regular_identifier, parse_scss_exclusive_syntax,
 };
 use biome_css_syntax::CssSyntaxKind::*;
 use biome_css_syntax::{CssSyntaxKind, T, TextRange};
@@ -22,13 +23,9 @@ use biome_parser::{CompletedMarker, Marker, Parser, SyntaxFeature, TokenSet, tok
 #[inline]
 pub fn parse_any_query_feature(p: &mut CssParser) -> ParsedSyntax {
     if is_at_scss_interpolation(p) {
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(
-            p,
-            parse_scss_interpolated_query_feature,
-            |p, marker| {
-                scss_only_syntax_error(p, "SCSS interpolated query features", marker.range(p))
-            },
-        )
+        parse_scss_exclusive_syntax(p, parse_scss_interpolated_query_feature, |p, marker| {
+            scss_only_syntax_error(p, "SCSS interpolated query features", marker.range(p))
+        })
     } else if is_at_query_feature_name(p) {
         parse_named_query_feature(p)
     } else if is_at_any_query_feature_value(p) {
@@ -66,17 +63,13 @@ pub(crate) fn parse_query_feature_name(p: &mut CssParser) -> ParsedSyntax {
     }
 
     if is_at_scss_variable(p) {
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(p, parse_scss_variable, |p, m| {
+        parse_scss_exclusive_syntax(p, parse_scss_variable, |p, m| {
             scss_only_syntax_error(p, "SCSS variables", m.range(p))
         })
     } else if is_at_scss_interpolated_query_feature_name(p) {
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(
-            p,
-            parse_scss_interpolated_name,
-            |p, marker| {
-                scss_only_syntax_error(p, "SCSS interpolated query feature names", marker.range(p))
-            },
-        )
+        parse_scss_exclusive_syntax(p, parse_scss_interpolated_name, |p, marker| {
+            scss_only_syntax_error(p, "SCSS interpolated query feature names", marker.range(p))
+        })
     } else {
         parse_regular_identifier(p)
     }
@@ -181,13 +174,9 @@ pub(crate) fn is_at_any_query_feature_value(p: &mut CssParser) -> bool {
 #[inline]
 fn parse_any_query_feature_value(p: &mut CssParser) -> ParsedSyntax {
     if is_at_scss_interpolation(p) {
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(
-            p,
-            parse_scss_interpolation_or_identifier,
-            |p, marker| {
-                scss_only_syntax_error(p, "SCSS interpolated query feature values", marker.range(p))
-            },
-        )
+        parse_scss_exclusive_syntax(p, parse_scss_interpolation_or_identifier, |p, marker| {
+            scss_only_syntax_error(p, "SCSS interpolated query feature values", marker.range(p))
+        })
     } else {
         // The concrete query-feature value grammar is narrower than `AnyCssValue`,
         // but this shared value parser gives us the right recovery for the current

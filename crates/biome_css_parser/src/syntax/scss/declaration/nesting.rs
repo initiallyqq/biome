@@ -10,7 +10,10 @@ use crate::syntax::scss::{
     is_at_scss_interpolated_property_name, parse_scss_interpolated_identifier,
     parse_scss_interpolated_property_name, parse_scss_optional_value_until,
 };
-use crate::syntax::{CssSyntaxFeatures, is_at_dashed_identifier, is_at_identifier, try_parse};
+use crate::syntax::{
+    CssSyntaxFeatures, is_at_dashed_identifier, is_at_identifier, parse_scss_exclusive_syntax,
+    try_parse,
+};
 use biome_css_syntax::CssSyntaxKind::{
     CSS_DECLARATION, CSS_DECLARATION_WITH_SEMICOLON, CSS_GENERIC_PROPERTY, SCSS_NESTING_DECLARATION,
 };
@@ -247,7 +250,7 @@ pub(crate) fn parse_exclusive_scss_nested_property_declaration(p: &mut CssParser
         return Absent;
     }
 
-    CssSyntaxFeatures::Scss.parse_exclusive_syntax(
+    parse_scss_exclusive_syntax(
         p,
         |p| try_parse_scss_nested_property_declaration(p).unwrap_or(Absent),
         |p, marker| scss_only_syntax_error(p, "SCSS nested property declarations", marker.range(p)),

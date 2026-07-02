@@ -84,7 +84,7 @@ use crate::syntax::scss::{
     parse_scss_include_at_rule, parse_scss_mixin_at_rule, parse_scss_return_at_rule,
     parse_scss_use_at_rule, parse_scss_warn_at_rule, parse_scss_while_at_rule,
 };
-use crate::syntax::{CssSyntaxFeatures, is_nth_at_dashed_identifier};
+use crate::syntax::{CssSyntaxFeatures, is_nth_at_dashed_identifier, parse_scss_exclusive_syntax};
 use biome_css_syntax::CssSyntaxKind::*;
 use biome_css_syntax::T;
 
@@ -260,13 +260,11 @@ pub(crate) fn parse_any_at_rule(p: &mut CssParser) -> ParsedSyntax {
                 tailwind_disabled(p, m.range(p))
             })
             .or_else(|| parse_unknown_at_rule(p)),
-        _ if is_at_scss_interpolation(p) => CssSyntaxFeatures::Scss.parse_exclusive_syntax(
-            p,
-            parse_scss_interpolated_unknown_at_rule,
-            |p, marker| {
+        _ if is_at_scss_interpolation(p) => {
+            parse_scss_exclusive_syntax(p, parse_scss_interpolated_unknown_at_rule, |p, marker| {
                 scss_only_syntax_error(p, "SCSS interpolated at-rule names", marker.range(p))
-            },
-        ),
+            })
+        }
         _ if is_at_unknown_at_rule(p) => parse_unknown_at_rule(p),
         _ => Absent,
     }

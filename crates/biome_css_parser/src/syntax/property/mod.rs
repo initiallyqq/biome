@@ -17,7 +17,7 @@ use crate::syntax::{
     CssSyntaxFeatures, ValueParsingContext, ValueParsingMode, is_at_any_value_with_context,
     is_at_dashed_identifier, is_at_identifier, is_at_string, is_nth_at_identifier,
     parse_any_value_with_context, parse_custom_identifier_with_keywords, parse_dashed_identifier,
-    parse_regular_identifier, parse_string,
+    parse_regular_identifier, parse_scss_exclusive_syntax, parse_string,
 };
 use biome_css_syntax::CssSyntaxKind::*;
 use biome_css_syntax::{CssSyntaxKind, T};
@@ -340,7 +340,7 @@ pub(crate) fn parse_generic_property_name(p: &mut CssParser) -> ParsedSyntax {
     }
 
     if is_at_scss_interpolated_property_name(p) {
-        return CssSyntaxFeatures::Scss.parse_exclusive_syntax(
+        return parse_scss_exclusive_syntax(
             p,
             parse_scss_interpolated_property_name,
             |p, marker| {

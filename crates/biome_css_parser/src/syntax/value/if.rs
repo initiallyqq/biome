@@ -12,7 +12,6 @@ use biome_parser::prelude::{CompletedMarker, ParsedSyntax};
 use biome_parser::token_set;
 
 use crate::parser::CssParser;
-use crate::syntax::CssSyntaxFeatures;
 use crate::syntax::at_rule::container::error::expected_any_container_style_query;
 use crate::syntax::at_rule::container::parse_any_container_style_query;
 use crate::syntax::at_rule::error::AnyInParensParseRecovery;
@@ -25,6 +24,7 @@ use crate::syntax::at_rule::supports::error::expected_any_supports_condition;
 use crate::syntax::at_rule::supports::{parse_any_supports_condition, parse_supports_declaration};
 use crate::syntax::is_at_declaration;
 use crate::syntax::parse_error::scss_only_syntax_error;
+use crate::syntax::parse_scss_exclusive_syntax;
 use crate::syntax::property::{
     END_OF_PROPERTY_VALUE_COMPONENT_LIST_TOKEN_SET, END_OF_PROPERTY_VALUE_TOKEN_SET,
     GenericComponentValueList,
@@ -33,7 +33,6 @@ use crate::syntax::scss::{expected_scss_expression, parse_scss_expression_until}
 use crate::syntax::value::parse_error::expected_if_branch;
 use crate::syntax::value::parse_error::expected_if_test_boolean_expr_group;
 use crate::syntax::value::parse_error::expected_if_test_boolean_not_expr;
-use biome_parser::SyntaxFeature;
 
 const IF_BRANCH_RECOVERY_TOKEN_SET: TokenSet<CssSyntaxKind> =
     token_set![T![;], T![')'], T!['}'], EOF];
@@ -225,13 +224,12 @@ fn parse_if_sass_test(p: &mut CssParser) -> ParsedSyntax {
     p.bump(T![sass]);
     p.bump(T!['(']);
 
-    CssSyntaxFeatures::Scss
-        .parse_exclusive_syntax(
-            p,
-            |p| parse_scss_expression_until(p, token_set![T![')']]),
-            |p, marker| scss_only_syntax_error(p, "Sass if() tests", marker.range(p)),
-        )
-        .or_add_diagnostic(p, expected_scss_expression);
+    parse_scss_exclusive_syntax(
+        p,
+        |p| parse_scss_expression_until(p, token_set![T![')']]),
+        |p, marker| scss_only_syntax_error(p, "Sass if() tests", marker.range(p)),
+    )
+    .or_add_diagnostic(p, expected_scss_expression);
 
     p.expect(T![')']);
 

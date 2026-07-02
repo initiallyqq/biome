@@ -18,7 +18,7 @@ use crate::syntax::scss::{
 use crate::syntax::value::dimension::{is_at_percentage_dimension, parse_percentage_dimension};
 use crate::syntax::{
     CssSyntaxFeatures, is_at_declaration, is_at_identifier, is_at_string, parse_custom_identifier,
-    parse_string,
+    parse_scss_exclusive_syntax, parse_string,
 };
 use biome_css_syntax::CssSyntaxKind::*;
 use biome_css_syntax::{CssSyntaxKind, T};
@@ -193,7 +193,7 @@ fn parse_keyframes_identifier(p: &mut CssParser) -> ParsedSyntax {
 /// `@keyframes $name`, `@keyframes #{$name}`, and `@keyframes fade-#{$name}`.
 fn parse_keyframes_name(p: &mut CssParser) -> ParsedSyntax {
     if is_at_scss_keyframes_name(p) {
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(p, parse_scss_keyframes_name, |p, marker| {
+        parse_scss_exclusive_syntax(p, parse_scss_keyframes_name, |p, marker| {
             scss_only_syntax_error(p, "SCSS keyframes names", marker.range(p))
         })
     } else {
@@ -273,11 +273,10 @@ fn parse_scss_keyframes_variable_declaration(p: &mut CssParser) -> ParsedSyntax 
 
     let m = p.start();
 
-    CssSyntaxFeatures::Scss
-        .parse_exclusive_syntax(p, parse_scss_variable_declaration, |p, marker| {
-            scss_only_syntax_error(p, "SCSS variable declarations", marker.range(p))
-        })
-        .ok();
+    parse_scss_exclusive_syntax(p, parse_scss_variable_declaration, |p, marker| {
+        scss_only_syntax_error(p, "SCSS variable declarations", marker.range(p))
+    })
+    .ok();
 
     Present(m.complete(p, SCSS_KEYFRAMES_VARIABLE_DECLARATION))
 }
@@ -421,13 +420,9 @@ fn parse_keyframes_item_selector(p: &mut CssParser) -> ParsedSyntax {
     }
 
     if is_at_scss_keyframes_selector(p) {
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(
-            p,
-            parse_scss_keyframes_selector,
-            |p, marker| {
-                scss_only_syntax_error(p, "SCSS interpolated keyframe selectors", marker.range(p))
-            },
-        )
+        parse_scss_exclusive_syntax(p, parse_scss_keyframes_selector, |p, marker| {
+            scss_only_syntax_error(p, "SCSS interpolated keyframe selectors", marker.range(p))
+        })
     } else if is_at_timeline_range_name(p) {
         parse_keyframes_range_selector(p)
     } else if is_at_percentage_dimension(p) {

@@ -9,7 +9,7 @@ use crate::syntax::selector::{
     recover_selector_function_parameter,
 };
 use crate::syntax::{
-    CssSyntaxFeatures, parse_number, parse_regular_identifier, parse_regular_number,
+    parse_number, parse_regular_identifier, parse_regular_number, parse_scss_exclusive_syntax,
 };
 use biome_css_syntax::CssSyntaxKind::*;
 use biome_css_syntax::CssSyntaxKind::{
@@ -21,7 +21,7 @@ use biome_css_syntax::{CssSyntaxKind, T};
 use biome_parser::parse_lists::ParseSeparatedList;
 use biome_parser::parsed_syntax::ParsedSyntax;
 use biome_parser::parsed_syntax::ParsedSyntax::{Absent, Present};
-use biome_parser::{Parser, SyntaxFeature, TokenSet, token_set};
+use biome_parser::{Parser, TokenSet, token_set};
 
 const PSEUDO_CLASS_FUNCTION_NTH_SET: TokenSet<CssSyntaxKind> = token_set![
     T![nth_child],
@@ -126,13 +126,9 @@ fn parse_pseudo_class_nth(p: &mut CssParser) -> ParsedSyntax {
     }
 
     if is_at_scss_pseudo_class_nth(p) {
-        return CssSyntaxFeatures::Scss.parse_exclusive_syntax(
-            p,
-            parse_scss_pseudo_class_nth,
-            |p, marker| {
-                scss_only_syntax_error(p, "SCSS interpolated nth arguments", marker.range(p))
-            },
-        );
+        return parse_scss_exclusive_syntax(p, parse_scss_pseudo_class_nth, |p, marker| {
+            scss_only_syntax_error(p, "SCSS interpolated nth arguments", marker.range(p))
+        });
     }
 
     let m = p.start();

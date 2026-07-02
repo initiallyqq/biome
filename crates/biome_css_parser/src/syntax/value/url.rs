@@ -11,15 +11,17 @@ use crate::syntax::value::function::{
     is_nth_at_css_function, is_nth_at_function, parse_css_function, parse_function,
 };
 use crate::syntax::value::parse_error::expected_url_modifier;
-use crate::syntax::{CssSyntaxFeatures, ValueParsingContext, ValueParsingMode};
-use crate::syntax::{is_at_identifier, is_at_string, parse_regular_identifier, parse_string};
+use crate::syntax::{
+    ValueParsingContext, ValueParsingMode, is_at_identifier, is_at_string,
+    parse_regular_identifier, parse_scss_exclusive_syntax, parse_string,
+};
 use biome_css_syntax::CssSyntaxKind::*;
 use biome_css_syntax::{CssSyntaxKind, T};
 use biome_parser::parse_lists::ParseNodeList;
 use biome_parser::parse_recovery::{ParseRecovery, RecoveryResult};
 use biome_parser::parsed_syntax::ParsedSyntax;
 use biome_parser::parsed_syntax::ParsedSyntax::{Absent, Present};
-use biome_parser::{Parser, SyntaxFeature, TokenSet, token_set};
+use biome_parser::{Parser, TokenSet, token_set};
 
 const URL_SET: TokenSet<CssSyntaxKind> = token_set![T![url], T![src]];
 const SCSS_URL_EXPRESSION_END_SET: TokenSet<CssSyntaxKind> = token_set![T![')']];
@@ -172,11 +174,11 @@ fn parse_url_modifier_function_with_context(
 ) -> ParsedSyntax {
     if context.is_scss_exclusive_syntax_allowed() {
         if is_at_scss_function(p) {
-            CssSyntaxFeatures::Scss.parse_exclusive_syntax(p, parse_scss_function, |p, marker| {
+            parse_scss_exclusive_syntax(p, parse_scss_function, |p, marker| {
                 scss_only_syntax_error(p, "SCSS qualified function names", marker.range(p))
             })
         } else if is_at_scss_interpolated_url_modifier_function(p) {
-            CssSyntaxFeatures::Scss.parse_exclusive_syntax(
+            parse_scss_exclusive_syntax(
                 p,
                 parse_scss_interpolated_function_or_value,
                 |p, marker| {
@@ -228,7 +230,7 @@ fn parse_url_value_with_context(p: &mut CssParser, context: ValueParsingContext)
     } else if is_at_string(p) {
         parse_string(p)
     } else if is_at_scss_interpolated_string(p) {
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(p, parse_scss_interpolated_string, |p, m| {
+        parse_scss_exclusive_syntax(p, parse_scss_interpolated_string, |p, m| {
             scss_only_syntax_error(p, "SCSS interpolated strings", m.range(p))
         })
     } else {

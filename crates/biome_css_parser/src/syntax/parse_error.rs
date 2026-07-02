@@ -260,6 +260,10 @@ pub(crate) fn scss_only_syntax_error(
     )
 }
 
+pub(crate) fn unsupported_css_syntax(p: &CssParser, range: TextRange) -> ParseDiagnostic {
+    p.err_builder("This syntax is not supported in CSS.", range)
+}
+
 pub(crate) fn inconsistent_scss_bracketed_list_separators(
     p: &CssParser,
     expected: &str,

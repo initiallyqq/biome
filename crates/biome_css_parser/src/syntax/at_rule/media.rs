@@ -12,7 +12,7 @@ use crate::syntax::scss::{
 use crate::syntax::util::skip_possible_tailwind_syntax;
 use crate::syntax::{
     CssSyntaxFeatures, is_at_identifier, is_at_metavariable, is_nth_at_identifier,
-    parse_metavariable, parse_regular_identifier,
+    parse_metavariable, parse_regular_identifier, parse_scss_exclusive_syntax,
 };
 use biome_css_syntax::CssSyntaxKind::*;
 use biome_css_syntax::{CssSyntaxKind, T};
@@ -127,13 +127,9 @@ pub(crate) fn parse_any_media_query(p: &mut CssParser) -> ParsedSyntax {
     if is_at_media_type_query(p) {
         parse_any_media_type_query(p)
     } else if is_at_scss_media_query(p) {
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(
-            p,
-            parse_scss_media_query_or_condition_query,
-            |p, marker| {
-                scss_only_syntax_error(p, "SCSS interpolated media queries", marker.range(p))
-            },
-        )
+        parse_scss_exclusive_syntax(p, parse_scss_media_query_or_condition_query, |p, marker| {
+            scss_only_syntax_error(p, "SCSS interpolated media queries", marker.range(p))
+        })
     } else if is_at_metavariable(p) {
         parse_metavariable(p)
     } else if is_at_any_media_condition(p) {
@@ -172,13 +168,9 @@ pub(crate) fn parse_any_media_condition(p: &mut CssParser) -> ParsedSyntax {
     if is_at_media_not_condition(p) {
         parse_media_not_condition(p)
     } else if is_at_scss_media_condition(p) {
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(
-            p,
-            parse_scss_media_condition,
-            |p, marker| {
-                scss_only_syntax_error(p, "SCSS interpolated media conditions", marker.range(p))
-            },
-        )
+        parse_scss_exclusive_syntax(p, parse_scss_media_condition, |p, marker| {
+            scss_only_syntax_error(p, "SCSS interpolated media conditions", marker.range(p))
+        })
     } else {
         parse_any_media_condition_operand(p).map(|lhs| match p.cur() {
             T![and] => parse_media_and_condition(p, lhs),
@@ -354,7 +346,7 @@ fn is_at_any_media_condition_operand(p: &mut CssParser) -> bool {
 #[inline]
 pub fn parse_any_media_condition_operand(p: &mut CssParser) -> ParsedSyntax {
     if is_at_scss_media_query(p) {
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(p, parse_scss_media_query, |p, marker| {
+        parse_scss_exclusive_syntax(p, parse_scss_media_query, |p, marker| {
             scss_only_syntax_error(p, "SCSS interpolated media queries", marker.range(p))
         })
     } else {

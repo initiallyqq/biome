@@ -17,7 +17,7 @@ use crate::syntax::scss::{
     parse_scss_supports_interpolated_condition,
 };
 use crate::syntax::selector::parse_selector;
-use crate::syntax::{CssSyntaxFeatures, parse_any_css_value};
+use crate::syntax::{parse_any_css_value, parse_scss_exclusive_syntax};
 use biome_css_syntax::CssSyntaxKind::*;
 use biome_css_syntax::{CssSyntaxKind, T};
 use biome_parser::parse_recovery::ParseRecovery;
@@ -233,7 +233,7 @@ fn parse_any_supports_condition_in_parens(
     } else if is_at_scss_supports_interpolated_condition(p) {
         // TODO(#10456): Add CSS-mode error fixtures for this SCSS-exclusive
         // branch after the shared SCSS interpolation gating lands.
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(
+        parse_scss_exclusive_syntax(
             p,
             parse_scss_supports_interpolated_condition,
             |p, marker| {

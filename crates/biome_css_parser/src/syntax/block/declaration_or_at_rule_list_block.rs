@@ -9,6 +9,7 @@ use crate::syntax::scss::{
 };
 use crate::syntax::{
     CssSyntaxFeatures, is_at_any_declaration_with_semicolon, parse_any_declaration_with_semicolon,
+    parse_scss_exclusive_syntax,
 };
 use biome_css_syntax::CssSyntaxKind::*;
 use biome_css_syntax::{CssSyntaxKind, T};
@@ -67,17 +68,13 @@ impl ParseNodeList for DeclarationOrAtRuleList {
         if is_at_at_rule(p) {
             parse_at_rule(p)
         } else if is_at_scss_variable_declaration(p) {
-            CssSyntaxFeatures::Scss.parse_exclusive_syntax(
-                p,
-                parse_scss_variable_declaration,
-                |p, marker| {
-                    scss_only_syntax_error(p, "SCSS variable declarations", marker.range(p))
-                },
-            )
+            parse_scss_exclusive_syntax(p, parse_scss_variable_declaration, |p, marker| {
+                scss_only_syntax_error(p, "SCSS variable declarations", marker.range(p))
+            })
         } else if CssSyntaxFeatures::Scss.is_supported(p) && is_at_scss_nesting_declaration(p) {
             parse_scss_interpolated_property_declaration(p)
         } else if is_at_scss_interpolated_property_name(p) {
-            CssSyntaxFeatures::Scss.parse_exclusive_syntax(
+            parse_scss_exclusive_syntax(
                 p,
                 parse_scss_interpolated_property_declaration,
                 |p, marker| {

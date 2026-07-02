@@ -1,5 +1,4 @@
 use crate::parser::CssParser;
-use crate::syntax::CssSyntaxFeatures;
 use crate::syntax::parse_error::{expected_declaration_item, scss_only_syntax_error};
 use crate::syntax::property::{
     is_at_any_property, parse_any_property, parse_any_property_with_value_end_set,
@@ -9,6 +8,7 @@ use crate::syntax::scss::{
     is_at_scss_variable_declaration, parse_scss_interpolated_property_declaration,
     parse_scss_variable_declaration,
 };
+use crate::syntax::{CssSyntaxFeatures, parse_scss_exclusive_syntax};
 use biome_css_syntax::CssSyntaxKind::*;
 use biome_css_syntax::{CssSyntaxKind, T};
 use biome_parser::parse_lists::ParseNodeList;
@@ -28,7 +28,7 @@ impl ParseNodeList for DeclarationList {
         if CssSyntaxFeatures::Scss.is_supported(p) && is_at_scss_nesting_declaration(p) {
             parse_scss_interpolated_property_declaration(p)
         } else if is_at_scss_interpolated_property_name(p) {
-            CssSyntaxFeatures::Scss.parse_exclusive_syntax(
+            parse_scss_exclusive_syntax(
                 p,
                 parse_scss_interpolated_property_declaration,
                 |p, marker| {
@@ -111,11 +111,9 @@ pub(crate) fn parse_any_declaration_with_semicolon(p: &mut CssParser) -> ParsedS
     if is_at_empty_declaration(p) {
         parse_empty_declaration(p)
     } else if is_at_scss_variable_declaration(p) {
-        CssSyntaxFeatures::Scss.parse_exclusive_syntax(
-            p,
-            parse_scss_variable_declaration,
-            |p, marker| scss_only_syntax_error(p, "SCSS variable declarations", marker.range(p)),
-        )
+        parse_scss_exclusive_syntax(p, parse_scss_variable_declaration, |p, marker| {
+            scss_only_syntax_error(p, "SCSS variable declarations", marker.range(p))
+        })
     } else if is_at_any_declaration_with_semicolon(p) {
         parse_declaration_with_semicolon(p)
     } else {

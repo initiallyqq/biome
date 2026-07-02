@@ -11,7 +11,8 @@ use crate::syntax::scss::{
 use crate::syntax::{
     CssSyntaxFeatures, is_at_any_declaration_with_semicolon, is_at_metavariable,
     is_at_nested_qualified_rule, is_at_qualified_rule, parse_any_declaration_with_semicolon,
-    parse_metavariable, parse_nested_qualified_rule, parse_qualified_rule, try_parse,
+    parse_metavariable, parse_nested_qualified_rule, parse_qualified_rule,
+    parse_scss_exclusive_syntax, try_parse,
     try_parse_nested_qualified_rule_without_selector_recovery,
 };
 use biome_css_syntax::CssSyntaxKind::*;
@@ -82,7 +83,7 @@ fn parse_exclusive_scss_interpolated_block_item(
     p: &mut CssParser,
     end_kind: CssSyntaxKind,
 ) -> ParsedSyntax {
-    let declaration = CssSyntaxFeatures::Scss.parse_exclusive_syntax(
+    let declaration = parse_scss_exclusive_syntax(
         p,
         |p| parse_exclusive_scss_interpolated_property_declaration(p, end_kind),
         |p, marker| {
@@ -170,13 +171,9 @@ impl ParseNodeList for DeclarationOrRuleList {
 
             parse_scss_nesting_declaration(p)
         } else if is_at_scss_variable_declaration(p) {
-            CssSyntaxFeatures::Scss.parse_exclusive_syntax(
-                p,
-                parse_scss_variable_declaration,
-                |p, marker| {
-                    scss_only_syntax_error(p, "SCSS variable declarations", marker.range(p))
-                },
-            )
+            parse_scss_exclusive_syntax(p, parse_scss_variable_declaration, |p, marker| {
+                scss_only_syntax_error(p, "SCSS variable declarations", marker.range(p))
+            })
         } else if is_at_scss_interpolated_property_name(p) {
             if CssSyntaxFeatures::Scss.is_supported(p) {
                 parse_scss_interpolated_block_item(p, self.end_kind)
