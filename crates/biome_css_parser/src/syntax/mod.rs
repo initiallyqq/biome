@@ -465,7 +465,10 @@ impl ValueParsingContext {
             ValueParsingMode::ScssAware if CssSyntaxFeatures::Scss.is_supported(p) => {
                 ScssCapability::Full
             }
-            ValueParsingMode::ScssAware => ScssCapability::ExclusiveOnly,
+            ValueParsingMode::ScssAware if p.options().should_report_scss_exclusive_syntax() => {
+                ScssCapability::ExclusiveOnly
+            }
+            ValueParsingMode::ScssAware => ScssCapability::Disabled,
         };
 
         Self {
@@ -1009,7 +1012,44 @@ mod tests {
     use biome_parser::Parser;
     use biome_parser::prelude::ParsedSyntax::{Absent, Present};
 
-    use super::{parse_regular_identifier, parse_regular_number, try_parse};
+    use super::{
+        ScssCapability, ValueParsingContext, ValueParsingMode, parse_regular_identifier,
+        parse_regular_number, try_parse,
+    };
+
+    #[test]
+    fn css_parser_option_controls_scss_exclusive_value_parsing() {
+        let css_parser = CssParser::new(
+            ".selector { width: 10px; }",
+            CssFileSource::css(),
+            CssParserOptions::default(),
+        );
+        assert_eq!(
+            ValueParsingContext::new(&css_parser, ValueParsingMode::ScssAware).scss_capability(),
+            ScssCapability::Disabled
+        );
+
+        let reporting_css_parser = CssParser::new(
+            ".selector { color: $color; }",
+            CssFileSource::css(),
+            CssParserOptions::default().report_scss_exclusive_syntax(),
+        );
+        assert_eq!(
+            ValueParsingContext::new(&reporting_css_parser, ValueParsingMode::ScssAware)
+                .scss_capability(),
+            ScssCapability::ExclusiveOnly
+        );
+
+        let scss_parser = CssParser::new(
+            ".selector { color: $color; }",
+            CssFileSource::scss(),
+            CssParserOptions::default(),
+        );
+        assert_eq!(
+            ValueParsingContext::new(&scss_parser, ValueParsingMode::ScssAware).scss_capability(),
+            ScssCapability::Full
+        );
+    }
 
     #[test]
     fn try_parse_rewinds_to_checkpoint() {
