@@ -445,8 +445,8 @@ pub(crate) enum ValueParsingMode {
     ScssAware,
     /// Restricts parsing to CSS syntax branches only.
     ///
-    /// Used by `<general-enclosed>` fallbacks to avoid SCSS-only diagnostics
-    /// for unknown-but-valid CSS constructs.
+    /// Used by `<general-enclosed>` fallbacks to avoid SCSS-only recovery for
+    /// unknown-but-valid CSS constructs.
     CssOnly,
 }
 
@@ -454,15 +454,15 @@ pub(crate) enum ValueParsingMode {
 ///
 /// Shared value parsing distinguishes between:
 /// - CSS-only parsing with no SCSS branches
-/// - SCSS-exclusive routing for diagnostics and recovery, without committing to
-///   full SCSS semantics for ambiguous syntax
+/// - SCSS-exclusive routing and recovery, without committing to full SCSS
+///   semantics for ambiguous syntax
 /// - full SCSS parsing where ambiguous syntax may be interpreted as SCSS
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub(crate) enum ScssCapability {
     /// Shared parsing must stay on CSS-only branches.
     Disabled,
-    /// SCSS-exclusive syntax may be recognized for routing, diagnostics, and
-    /// recovery, but ambiguous syntax must not commit to full SCSS semantics.
+    /// SCSS-exclusive syntax may be recognized for routing and recovery, but
+    /// ambiguous syntax must not commit to full SCSS semantics.
     ExclusiveOnly,
     /// Full SCSS parsing is enabled.
     Full,
@@ -518,16 +518,16 @@ impl ValueParsingContext {
         self.scss_capability
     }
 
-    /// Returns whether SCSS-exclusive branches may be used for routing,
-    /// diagnostics, and recovery.
+    /// Returns whether SCSS-exclusive branches may be used for routing and
+    /// recovery.
     ///
     /// Use this at mixed CSS/SCSS boundaries when the parser needs to:
     /// - recognize SCSS-only syntax so it can route into
     ///   `parse_exclusive_syntax(...)`
     /// - build a more accurate recovery tree for unsupported SCSS syntax in a
     ///   CSS file
-    /// - emit an SCSS-only diagnostic instead of falling through to a generic
-    ///   CSS error
+    /// - report unsupported SCSS syntax without falling through to unrelated CSS
+    ///   errors
     ///
     /// This is the right check for exclusive SCSS forms such as qualified
     /// names, interpolation-led values, or SCSS-only URL modifiers. It should
@@ -1122,7 +1122,7 @@ mod tests {
     };
 
     #[test]
-    fn css_parser_option_controls_scss_exclusive_value_parsing() {
+    fn css_parser_context_allows_scss_exclusive_value_recovery() {
         let css_parser = CssParser::new(
             ".selector { width: 10px; }",
             CssFileSource::css(),

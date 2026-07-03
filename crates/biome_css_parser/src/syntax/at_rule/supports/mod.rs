@@ -231,8 +231,6 @@ fn parse_any_supports_condition_in_parens(
     } else if is_at_supports_condition_in_parens(p) {
         parse_supports_condition_in_parens(p)
     } else if is_at_scss_supports_interpolated_condition(p) {
-        // TODO(#10456): Add CSS-mode error fixtures for this SCSS-exclusive
-        // branch after the shared SCSS interpolation gating lands.
         parse_scss_exclusive_syntax(
             p,
             parse_scss_supports_interpolated_condition,
