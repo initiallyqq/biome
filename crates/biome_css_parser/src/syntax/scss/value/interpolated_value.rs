@@ -56,6 +56,17 @@ pub(crate) fn is_at_scss_suffixed_interpolated_value(p: &mut CssParser) -> bool 
 }
 
 #[inline]
+pub(crate) fn is_at_scss_suffixed_interpolated_value_with_scss_head(p: &mut CssParser) -> bool {
+    if is_at_scss_namespaced_variable(p) {
+        is_nth_at_adjacent_interpolation_suffix(p, 4)
+    } else if is_at_scss_variable(p) {
+        is_nth_at_adjacent_interpolation_suffix(p, 2)
+    } else {
+        false
+    }
+}
+
+#[inline]
 fn is_nth_at_adjacent_interpolation_suffix(p: &mut CssParser, n: usize) -> bool {
     is_nth_at_scss_interpolation(p, n) && !p.has_nth_preceding_whitespace(n)
 }

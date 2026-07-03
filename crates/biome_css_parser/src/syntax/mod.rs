@@ -23,14 +23,15 @@ use crate::syntax::property::unicode_range::{is_at_unicode_range, parse_unicode_
 use crate::syntax::scss::{
     add_scss_variable_member_function_name_diagnostic, is_at_any_scss_value, is_at_scss_function,
     is_at_scss_interpolated_dashed_identifier, is_at_scss_interpolated_function_or_value,
-    is_at_scss_interpolated_string, is_at_scss_module_member_access,
-    is_at_scss_parent_selector_value, is_at_scss_suffixed_interpolated_value, is_at_scss_variable,
+    is_at_scss_interpolated_string, is_at_scss_interpolation, is_at_scss_module_member_access,
+    is_at_scss_parent_selector_value, is_at_scss_suffixed_interpolated_value,
+    is_at_scss_suffixed_interpolated_value_with_scss_head, is_at_scss_variable,
     is_at_scss_variable_declaration, parse_scss_bracketed_value_expression_item,
     parse_scss_function, parse_scss_interpolated_dashed_identifier,
     parse_scss_interpolated_function_or_value, parse_scss_interpolated_string,
-    parse_scss_module_member_access, parse_scss_parent_selector_value,
-    parse_scss_suffixed_interpolated_value_until, parse_scss_variable,
-    parse_scss_variable_declaration,
+    parse_scss_interpolated_value, parse_scss_module_member_access,
+    parse_scss_parent_selector_value, parse_scss_suffixed_interpolated_value_until,
+    parse_scss_variable, parse_scss_variable_declaration,
 };
 use crate::syntax::selector::SelectorList;
 use crate::syntax::selector::is_nth_at_selector;
@@ -381,9 +382,34 @@ pub(crate) fn is_at_any_value_with_context(
     p: &mut CssParser,
     context: ValueParsingContext,
 ) -> bool {
-    (context.is_scss_exclusive_syntax_allowed() && is_at_any_scss_value(p))
-        || is_at_any_function_with_context(p, context)
+    is_at_any_function_with_context(p, context)
         || is_at_any_non_function_css_value(p)
+        || is_at_exclusive_scss_value_with_context(p, context)
+}
+
+#[inline]
+fn is_at_exclusive_scss_value_with_context(
+    p: &mut CssParser,
+    context: ValueParsingContext,
+) -> bool {
+    if context.is_full_scss_parsing_allowed() {
+        is_at_any_scss_value(p)
+    } else if context.is_scss_exclusive_syntax_allowed() {
+        is_at_fast_scss_exclusive_value(p)
+    } else {
+        false
+    }
+}
+
+#[inline]
+fn is_at_fast_scss_exclusive_value(p: &mut CssParser) -> bool {
+    is_at_scss_variable(p)
+        || is_at_scss_module_member_access(p)
+        || is_at_scss_suffixed_interpolated_value_with_scss_head(p)
+        || is_at_scss_interpolated_dashed_identifier(p)
+        || is_at_scss_interpolated_function_or_value(p)
+        || is_at_scss_parent_selector_value(p)
+        || is_at_scss_interpolated_string(p)
 }
 
 #[inline]
@@ -466,10 +492,7 @@ impl ValueParsingContext {
             ValueParsingMode::ScssAware if CssSyntaxFeatures::Scss.is_supported(p) => {
                 ScssCapability::Full
             }
-            ValueParsingMode::ScssAware if p.options().should_report_scss_exclusive_syntax() => {
-                ScssCapability::ExclusiveOnly
-            }
-            ValueParsingMode::ScssAware => ScssCapability::Disabled,
+            ValueParsingMode::ScssAware => ScssCapability::ExclusiveOnly,
         };
 
         Self {
@@ -563,20 +586,20 @@ pub(crate) fn parse_any_value_with_context(
     p: &mut CssParser,
     context: ValueParsingContext,
 ) -> ParsedSyntax {
-    if context.is_scss_exclusive_syntax_allowed() && is_at_any_scss_value(p) {
-        parse_any_exclusive_scss_value(p)
+    if is_at_exclusive_scss_value_with_context(p, context) {
+        parse_any_exclusive_scss_value(p, context)
     } else if is_at_any_function_with_context(p, context) {
-        // CSS functions stay on this branch. SCSS-only function heads
-        // (`namespace.fn(...)`, interpolation-led heads, etc.) are claimed above
-        // so CSS mode still rejects them while SCSS mode parses them as functions.
         parse_any_function_with_context(p, context)
     } else {
-        parse_any_non_function_css_value(p)
+        parse_any_non_function_css_value(p, context)
     }
 }
 
 #[inline]
-fn parse_any_non_function_css_value(p: &mut CssParser) -> ParsedSyntax {
+fn parse_any_non_function_css_value(
+    p: &mut CssParser,
+    context: ValueParsingContext,
+) -> ParsedSyntax {
     // Keep ratio before plain numbers so CSS values still parse `16 / 9` as `CSS_RATIO`.
     if is_at_ratio(p) {
         parse_ratio(p)
@@ -597,9 +620,13 @@ fn parse_any_non_function_css_value(p: &mut CssParser) -> ParsedSyntax {
     } else if p.at(CSS_STRING_LITERAL) {
         parse_string(p)
     } else if is_at_any_dimension(p) {
-        parse_any_dimension(p)
+        parse_any_dimension(p).map(|first_part| {
+            parse_scss_interpolated_value_suffix_from_css_head(p, first_part, context)
+        })
     } else if p.at(CSS_NUMBER_LITERAL) {
-        parse_regular_number(p)
+        parse_regular_number(p).map(|first_part| {
+            parse_scss_interpolated_value_suffix_from_css_head(p, first_part, context)
+        })
     } else if is_at_color(p) {
         parse_color(p)
     } else if is_at_bracketed_value(p) {
@@ -612,14 +639,65 @@ fn parse_any_non_function_css_value(p: &mut CssParser) -> ParsedSyntax {
 }
 
 #[inline]
-fn parse_any_exclusive_scss_value(p: &mut CssParser) -> ParsedSyntax {
+fn parse_scss_interpolated_value_suffix_from_css_head(
+    p: &mut CssParser,
+    first_part: CompletedMarker,
+    context: ValueParsingContext,
+) -> CompletedMarker {
+    if !context.is_scss_exclusive_syntax_allowed()
+        || p.has_preceding_whitespace()
+        || p.has_preceding_line_break()
+        || !is_at_scss_interpolation(p)
+    {
+        return first_part;
+    }
+
+    let diagnostics_checkpoint = p.context().diagnostics().len();
+    let syntax = parse_scss_interpolated_value(p, first_part, |p| {
+        p.has_preceding_whitespace() || p.has_preceding_line_break()
+    });
+
+    scss_exclusive_completed_syntax(p, syntax, diagnostics_checkpoint, |p, marker| {
+        scss_only_syntax_error(p, "SCSS interpolated values", marker.range(p))
+    })
+}
+
+#[inline]
+fn scss_exclusive_completed_syntax<'source, E>(
+    p: &mut CssParser<'source>,
+    mut syntax: CompletedMarker,
+    diagnostics_checkpoint: usize,
+    error_builder: E,
+) -> CompletedMarker
+where
+    E: FnOnce(&CssParser<'source>, &CompletedMarker) -> ParseDiagnostic,
+{
+    if CssSyntaxFeatures::Scss.is_supported(p) {
+        return syntax;
+    }
+
+    p.context_mut().truncate_diagnostics(diagnostics_checkpoint);
+
+    let diagnostic = if p.options().should_report_scss_exclusive_syntax() {
+        error_builder(p, &syntax)
+    } else {
+        unsupported_css_syntax(p, syntax.range(p))
+    };
+
+    p.error(diagnostic);
+    syntax.change_to_bogus(p);
+    syntax
+}
+
+#[inline]
+fn parse_any_exclusive_scss_value(p: &mut CssParser, context: ValueParsingContext) -> ParsedSyntax {
     // `module.$name(` must fall through to module-member parsing so it can
     // recover as a call with the `$` member diagnostic.
     if is_at_scss_function(p) && !p.nth_at(2, T![$]) {
         parse_scss_exclusive_syntax(p, parse_scss_function, |p, m| {
             scss_only_syntax_error(p, "SCSS qualified function names", m.range(p))
         })
-    } else if is_at_scss_suffixed_interpolated_value(p) {
+    } else if is_at_scss_suffixed_interpolated_value_with_context(p, context) {
         parse_scss_exclusive_syntax(
             p,
             |p| {
@@ -659,6 +737,18 @@ fn parse_any_exclusive_scss_value(p: &mut CssParser) -> ParsedSyntax {
         })
     } else {
         Absent
+    }
+}
+
+#[inline]
+fn is_at_scss_suffixed_interpolated_value_with_context(
+    p: &mut CssParser,
+    context: ValueParsingContext,
+) -> bool {
+    if context.is_full_scss_parsing_allowed() {
+        is_at_scss_suffixed_interpolated_value(p)
+    } else {
+        is_at_scss_suffixed_interpolated_value_with_scss_head(p)
     }
 }
 
@@ -1040,7 +1130,7 @@ mod tests {
         );
         assert_eq!(
             ValueParsingContext::new(&css_parser, ValueParsingMode::ScssAware).scss_capability(),
-            ScssCapability::Disabled
+            ScssCapability::ExclusiveOnly
         );
         assert!(
             ValueParsingContext::new(&css_parser, ValueParsingMode::ScssAware)

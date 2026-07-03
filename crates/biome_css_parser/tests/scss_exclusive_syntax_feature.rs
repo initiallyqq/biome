@@ -3,6 +3,8 @@ use biome_languages::CssFileSource;
 
 const SCSS_VARIABLE_DECLARATION: &str = "$color: red;";
 const SCSS_VARIABLE_VALUE: &str = ".selector { color: $color; }";
+const SCSS_DIMENSION_INTERPOLATED_VALUE: &str = ".selector { width: 10px#{suffix}; }";
+const SCSS_NUMBER_INTERPOLATED_VALUE: &str = ".selector { width: 10#{unit}; }";
 
 fn diagnostic_text(parse: &biome_css_parser::CssParse) -> String {
     format!("{:?}", parse.diagnostics())
@@ -48,6 +50,45 @@ fn css_files_report_scss_exclusive_syntax_when_enabled_by_parser_options() {
         "SCSS variables",
         CssParserOptions::default().report_scss_exclusive_syntax(),
     );
+}
+
+#[test]
+fn reporting_scss_exclusive_syntax_only_changes_diagnostic_text() {
+    for source in [
+        SCSS_VARIABLE_VALUE,
+        SCSS_NUMBER_INTERPOLATED_VALUE,
+        SCSS_DIMENSION_INTERPOLATED_VALUE,
+    ] {
+        let default_parse = parse_css(source, CssFileSource::css(), CssParserOptions::default());
+        let reporting_parse = parse_css(
+            source,
+            CssFileSource::css(),
+            CssParserOptions::default().report_scss_exclusive_syntax(),
+        );
+
+        assert_eq!(
+            format!("{:#?}", default_parse.syntax()),
+            format!("{:#?}", reporting_parse.syntax()),
+            "expected parser option to preserve CSS recovery tree for {source}"
+        );
+        assert_eq!(
+            default_parse.diagnostics().len(),
+            reporting_parse.diagnostics().len(),
+            "expected parser option to preserve diagnostic count for {source}"
+        );
+
+        let default_diagnostics = diagnostic_text(&default_parse);
+        let reporting_diagnostics = diagnostic_text(&reporting_parse);
+
+        assert!(
+            !default_diagnostics.contains("SCSS"),
+            "expected default parser option to keep generic diagnostics, got: {default_diagnostics}"
+        );
+        assert!(
+            reporting_diagnostics.contains("SCSS"),
+            "expected reporting parser option to emit SCSS diagnostics, got: {reporting_diagnostics}"
+        );
+    }
 }
 
 #[test]
