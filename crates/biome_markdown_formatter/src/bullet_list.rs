@@ -288,6 +288,7 @@ impl Format<MarkdownFormatContext> for ListBlockList {
     fn fmt(&self, f: &mut Formatter<MarkdownFormatContext>) -> FormatResult<()> {
         let iter = BlockListIterator::new(self.content.iter());
         let mut pending_breaks: u8 = 0;
+        let mut at_line_terminator = false;
         for item in iter {
             match item {
                 BlockListIteratorItem::WithContinuationIndent {
@@ -307,16 +308,37 @@ impl Format<MarkdownFormatContext> for ListBlockList {
                         )?;
                     }
 
-                    Self::emit_pending_breaks(pending_breaks, &content, f)?;
-                    Self::fmt_list_content(&content, f)?;
+                    // A newline right after a block that doesn't carry its
+                    // own trailing newline (like an HTML block or a fenced
+                    // code block) is that block's line terminator, not a
+                    // blank line. The pending break already provides its
+                    // line ending, so the newline is removed instead of
+                    // printed.
+                    if at_line_terminator && content.is_newline() {
+                        if let AnyMdBlock::AnyMdLeafBlock(AnyMdLeafBlock::MdNewline(newline)) =
+                            &content
+                        {
+                            write!(
+                                f,
+                                [newline.format().with_options(FormatMdNewlineOptions {
+                                    print_mode: TextPrintMode::Remove,
+                                })]
+                            )?;
+                        }
+                    } else {
+                        Self::emit_pending_breaks(pending_breaks, &content, f)?;
+                        Self::fmt_list_content(&content, f)?;
+                    }
 
+                    let middle_is_terminator = middle_block.is_newline()
+                        && (content.is_html_block() || content.is_fenced_block());
                     if let AnyMdBlock::AnyMdLeafBlock(AnyMdLeafBlock::MdNewline(newline)) =
                         &middle_block
                     {
                         write!(
                             f,
                             [newline.format().with_options(FormatMdNewlineOptions {
-                                should_remove: true
+                                print_mode: TextPrintMode::Remove,
                             })]
                         )?;
                     } else {
@@ -332,7 +354,12 @@ impl Format<MarkdownFormatContext> for ListBlockList {
                             })]
                     )?;
 
-                    pending_breaks = if middle_block.is_newline() { 2 } else { 1 };
+                    pending_breaks = if middle_block.is_newline() && !middle_is_terminator {
+                        2
+                    } else {
+                        1
+                    };
+                    at_line_terminator = false;
                 }
 
                 BlockListIteratorItem::OnlyContinuationIndent {
@@ -362,6 +389,7 @@ impl Format<MarkdownFormatContext> for ListBlockList {
                             })]
                     )?;
                     pending_breaks = 1;
+                    at_line_terminator = content.is_html_block() || content.is_fenced_block();
                 }
 
                 BlockListIteratorItem::Simple((content, quote_prefix)) => {
@@ -375,17 +403,27 @@ impl Format<MarkdownFormatContext> for ListBlockList {
                     }
                     if let AnyMdBlock::AnyMdLeafBlock(AnyMdLeafBlock::MdNewline(newline)) = &content
                     {
+                        // A newline right after a block that doesn't carry
+                        // its own trailing newline is that block's line
+                        // terminator; only the newlines after it are blank
+                        // lines. The pending break already provides the
+                        // terminator's line ending.
+                        if at_line_terminator {
+                            at_line_terminator = false;
+                        } else {
+                            pending_breaks += 1;
+                        }
                         write!(
                             f,
                             [newline.format().with_options(FormatMdNewlineOptions {
-                                should_remove: true
+                                print_mode: TextPrintMode::Remove,
                             })]
                         )?;
-                        pending_breaks += 1;
                     } else {
                         Self::emit_pending_breaks(pending_breaks, &content, f)?;
                         Self::fmt_list_content(&content, f)?;
                         pending_breaks = 1;
+                        at_line_terminator = content.is_html_block() || content.is_fenced_block();
                     }
                 }
             }

@@ -149,7 +149,7 @@ fn format_removed_quote_boundary(node: &AnyMdBlock, f: &mut MarkdownFormatter) -
             write!(
                 f,
                 [newline.format().with_options(FormatMdNewlineOptions {
-                    should_remove: true,
+                    print_mode: TextPrintMode::Remove,
                 })]
             )
         }
@@ -285,7 +285,7 @@ impl Format<MarkdownFormatContext> for DefaultBlockListFormatter {
 
                 if prev_was_header && !is_leading && !is_trailing {
                     joiner.entry(&newline.format().with_options(FormatMdNewlineOptions {
-                        should_remove: true,
+                        print_mode: TextPrintMode::Remove,
                     }));
                     while iter.peek().is_some_and(|(_, next)| next.is_newline()) {
                         if let Some((
@@ -294,7 +294,7 @@ impl Format<MarkdownFormatContext> for DefaultBlockListFormatter {
                         )) = iter.next()
                         {
                             joiner.entry(&extra.format().with_options(FormatMdNewlineOptions {
-                                should_remove: true,
+                                print_mode: TextPrintMode::Remove,
                             }));
                         }
                     }
@@ -326,7 +326,7 @@ impl Format<MarkdownFormatContext> for DefaultBlockListFormatter {
                         // stay separate lists.
                         for nl in &run {
                             joiner.entry(&nl.format().with_options(FormatMdNewlineOptions {
-                                should_remove: true,
+                                print_mode: TextPrintMode::Remove,
                             }));
                         }
                         joiner.entry(&empty_line());
@@ -340,7 +340,7 @@ impl Format<MarkdownFormatContext> for DefaultBlockListFormatter {
                             if let Some(line_terminator) = blank_lines.next() {
                                 joiner.entry(&line_terminator.format().with_options(
                                     FormatMdNewlineOptions {
-                                        should_remove: true,
+                                        print_mode: TextPrintMode::Remove,
                                     },
                                 ));
                             }
@@ -353,7 +353,7 @@ impl Format<MarkdownFormatContext> for DefaultBlockListFormatter {
                     }
                 } else if next_is_bull_item {
                     joiner.entry(&newline.format().with_options(FormatMdNewlineOptions {
-                        should_remove: true,
+                        print_mode: TextPrintMode::Remove,
                     }));
                     if !is_leading && !is_trailing {
                         if prev_was_html_block
@@ -367,7 +367,11 @@ impl Format<MarkdownFormatContext> for DefaultBlockListFormatter {
                     }
                 } else {
                     joiner.entry(&newline.format().with_options(FormatMdNewlineOptions {
-                        should_remove: is_leading || is_trailing,
+                        print_mode: if is_leading || is_trailing {
+                            TextPrintMode::Remove
+                        } else {
+                            TextPrintMode::Pristine
+                        },
                     }));
                 }
                 prev_was_header = false;
