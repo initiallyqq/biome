@@ -453,6 +453,7 @@ pub(crate) enum FunctionCallContext {
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub(crate) struct ValueParsingContext {
+    mode: ValueParsingMode,
     scss_capability: ScssCapability,
     function_call_context: FunctionCallContext,
 }
@@ -472,6 +473,7 @@ impl ValueParsingContext {
         };
 
         Self {
+            mode,
             scss_capability,
             function_call_context: FunctionCallContext::LooseRecovery,
         }
@@ -511,6 +513,18 @@ impl ValueParsingContext {
     #[inline]
     pub(crate) const fn is_scss_exclusive_syntax_allowed(self) -> bool {
         !matches!(self.scss_capability(), ScssCapability::Disabled)
+    }
+
+    /// Returns whether shared value parsing may recover a Sass qualified function
+    /// head such as `color.adjust(...)`.
+    ///
+    /// This stays enabled in normal CSS parsing so qualified Sass function heads
+    /// produce one unsupported-syntax diagnostic instead of cascading through the
+    /// regular CSS value parser. It is still disabled for explicit CSS-only
+    /// fallback parsing.
+    #[inline]
+    pub(crate) const fn is_scss_qualified_function_recovery_allowed(self) -> bool {
+        matches!(self.mode, ValueParsingMode::ScssAware)
     }
 
     /// Returns whether ambiguous syntax may commit to full SCSS semantics.
@@ -1027,6 +1041,14 @@ mod tests {
         assert_eq!(
             ValueParsingContext::new(&css_parser, ValueParsingMode::ScssAware).scss_capability(),
             ScssCapability::Disabled
+        );
+        assert!(
+            ValueParsingContext::new(&css_parser, ValueParsingMode::ScssAware)
+                .is_scss_qualified_function_recovery_allowed()
+        );
+        assert!(
+            !ValueParsingContext::new(&css_parser, ValueParsingMode::CssOnly)
+                .is_scss_qualified_function_recovery_allowed()
         );
 
         let reporting_css_parser = CssParser::new(
